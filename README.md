@@ -42,6 +42,25 @@ or
 npm install /path/to/octa-types/directory
 ```
 
+## Using
+
+Simply
+
+```javascript
+import {
+  AccountStatement,
+  AccountStatementSigned,
+  RequiredProofs,
+  Transaction,
+  TransactionalProof,
+  TransactionType,
+  RequiredProof,
+  RequiredProofType,
+} from 'octa-types';
+
+// awesome code here
+```
+
 ## License
 
 [Apache-2.0](LICENSE)
