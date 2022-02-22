@@ -3,6 +3,7 @@ import {
   Scalar,
   Group,
   PublicKey,
+  PrivateKey,
   UInt64,
   CircuitValue,
   prop,
@@ -28,6 +29,13 @@ function castField(f: Field | null): Field {
 }
 
 function castScalar(f: Scalar | null): Scalar {
+  if (f === null) {
+    throw Error();
+  }
+  return f;
+}
+
+function castJSONValue(f: JSONValue | null): JSONValue {
   if (f === null) {
     throw Error();
   }
@@ -103,31 +111,6 @@ export class TransactionType extends CircuitValue {
   isIncome(): Bool {
     return this.deposit.and(this.transferIn);
   }
-
-  serialize() {
-    return {
-      purchase: this.purchase.toField().toJSON(),
-      deposit: this.deposit.toField().toJSON(),
-      transferIn: this.transferIn.toField().toJSON(),
-      transaferOut: this.transaferOut.toField().toJSON(),
-    };
-  }
-
-  static deserialize(input: TransactionTypeDefinition): TransactionType {
-    const purchase: Bool = Bool.Unsafe.ofField(
-      castField(Field.fromJSON(input.purchase.toString()))
-    );
-    const deposit: Bool = Bool.Unsafe.ofField(
-      castField(Field.fromJSON(input.deposit.toString()))
-    );
-    const transferIn: Bool = Bool.Unsafe.ofField(
-      castField(Field.fromJSON(input.transferIn.toString()))
-    );
-    const transferOut: Bool = Bool.Unsafe.ofField(
-      castField(Field.fromJSON(input.transaferOut.toString()))
-    );
-    return new TransactionType(purchase, deposit, transferIn, transferOut);
-  }
 }
 
 export class Transaction extends CircuitValue {
@@ -147,30 +130,6 @@ export class Transaction extends CircuitValue {
     this.amount = amount;
     this.transactionType = transactionType;
     this.timestamp = timestamp;
-  }
-
-  serialize() {
-    return {
-      id: this.id.toJSON(),
-      amount: this.amount.value.toJSON(),
-      transactionType: this.transactionType.serialize(),
-      timestamp: this.timestamp.value.toJSON(),
-    };
-  }
-
-  static deserialize(input: TransactionDefinition): Transaction {
-    console.log('Transaction');
-    const id: Field = castField(Field.fromJSON(input.id.toString()));
-    const amount: Int64 = new Int64(
-      castField(Field.fromJSON(input.amount.toString()))
-    );
-    const transaction_type: TransactionType = TransactionType.deserialize(
-      input.transactionType
-    );
-    const timestamp: Int64 = new Int64(
-      castField(Field.fromJSON(input.timestamp.toString()))
-    );
-    return new Transaction(id, amount, transaction_type, timestamp);
   }
 }
 
@@ -201,116 +160,67 @@ export class AccountStatement extends CircuitValue {
     this.transactions = transactions;
   }
 
-  serialize() {
-    let transactions: JSONValue[] = [];
-    for (let i = 0; i < this.transactions.length; ++i) {
-      transactions.push(this.transactions[i].serialize());
+  /*
+    toJSON(): JSONValue {
+        const res: { [key: string]: JSONValue } = {};
+        let transactions: JSONValue[] = [];
+        for (let i = 0; i < this.transactions.length; ++i) {
+            transactions.push(this.transactions[i].toJSON());
+        }
+        res['id'] = this.id.toJSON();
+        res['balance'] = this.balance.toJSON();
+        res['timestamp'] = this.timestamp.toJSON();
+        res['fromTimestamp'] = this.fromTimestamp.toJSON();
+        res['toTimestamp'] = this.toTimestamp.toJSON();
+        res['transactions'] = transactions;
+        return res;
+  }
+
+    static fromJSON(obj: JSONValue | null): AccountStatement {
+        const input: JSONValue = castJSONValue(obj);
+        const id: Field = castField(
+            Field.fromJSON(input['id'].toString()));
+        const balance: UInt64 = new UInt64(castField(
+            Field.fromJSON(input.balance.toString())));
+        const timestamp: Int64 = new Int64(castField(
+            Field.fromJSON(input.timestamp.toString())));
+        const fromTimestamp: Int64 = new Int64(castField(
+            Field.fromJSON(input.fromTimestamp.toString())));
+        const toTimestamp: Int64 = new Int64(castField(
+            Field.fromJSON(input.toTimestamp.toString())));
+        let transactions: Transaction[] = [];
+        for (let i = 0; i < input['transactions'].length; ++i) {
+            transactions.push(Transaction.fromJSON(input['transactions'][i]));
+        }
+        return new AccountStatement(
+            id, balance, timestamp, fromTimestamp, toTimestamp, transactions);
     }
-    return {
-      id: this.id.toJSON(),
-      balance: this.balance.value.toJSON(),
-      timestamp: this.timestamp.value.toJSON(),
-      fromTimestamp: this.fromTimestamp.value.toJSON(),
-      toTimestamp: this.toTimestamp.value.toJSON(),
-      transactions: transactions,
-    };
+    */
+
+  sign(authorityPrivateKey: PrivateKey): Signature {
+    const signature: Signature = Signature.create(
+      authorityPrivateKey,
+      this.toFields()
+    );
+    return signature;
   }
 
-  static deserialize(input: AccountStatementDefinition): AccountStatement {
-    console.log(input.id.toString());
-    console.log(input.id);
-    console.log(Field.fromJSON(input.id.toString()));
-    const id: Field = castField(Field.fromJSON(input.id.toString()));
-    const balance: UInt64 = new UInt64(
-      castField(Field.fromJSON(input.balance.toString()))
-    );
-    const timestamp: Int64 = new Int64(
-      castField(Field.fromJSON(input.timestamp.toString()))
-    );
-    const fromTimestamp: Int64 = new Int64(
-      castField(Field.fromJSON(input.fromTimestamp.toString()))
-    );
-    const toTimestamp: Int64 = new Int64(
-      castField(Field.fromJSON(input.toTimestamp.toString()))
-    );
-    let transactions: Transaction[] = [];
-    for (let i = 0; i < input.transactions.length; ++i) {
-      console.log(i);
-      transactions.push(Transaction.deserialize(input.transactions[i]));
-    }
-    return new AccountStatement(
-      id,
-      balance,
-      timestamp,
-      fromTimestamp,
-      toTimestamp,
-      transactions
-    );
-  }
-}
-
-export class AccountStatementSigned extends CircuitValue {
-  @prop statement: AccountStatement;
-  @prop authorityPublicKey: PublicKey;
-  @prop signature: Signature;
-
-  constructor(
-    statement: AccountStatement,
-    authorityPublicKey: PublicKey,
-    signature: Signature
-  ) {
-    super();
-    this.statement = statement;
-    this.authorityPublicKey = authorityPublicKey;
-    this.signature = signature;
-  }
-
-  serialize() {
-    return {
-      statement: this.statement.serialize(),
-      authorityPublicKey: this.authorityPublicKey.toJSON(),
-      signature: this.signature.toJSON(),
-    };
-  }
-
-  verifySignature() {
-    // TODO
-  }
-
-  static deserialize(
-    input: AccountStatementSignedDefinition
-  ): AccountStatementSigned {
-    const _r: Field = castField(Field.fromJSON(input.signature.r.toString()));
-    const _s: Scalar = castScalar(
-      Scalar.fromJSON(input.signature.s.toString())
-    );
-    const signature: Signature = new Signature(_r, _s);
-    const _x: Field = castField(
-      Field.fromJSON(input.authorityPublicKey.g.x.toString())
-    );
-    const _y: Field = castField(
-      Field.fromJSON(input.authorityPublicKey.g.x.toString())
-    );
-    const g: Group = new Group(_x, _y);
-    const public_key: PublicKey = new PublicKey(g);
-    const statement: AccountStatement = AccountStatement.deserialize(
-      input.statement
-    );
-    return new AccountStatementSigned(statement, public_key, signature);
+  verifySignature(authorityPublicKey: PublicKey, signature: Signature): Bool {
+    return signature.verify(authorityPublicKey, this.toFields());
   }
 }
 
 export class TransactionalProof {
-  account: AccountStatementSigned;
+  account: AccountStatement;
   requiredProofs: RequiredProofs;
 
-  constructor(account: AccountStatementSigned, requiredProofs: RequiredProofs) {
+  constructor(account: AccountStatement, requiredProofs: RequiredProofs) {
     this.account = account;
     this.requiredProofs = requiredProofs;
   }
 
-  validate() {
-    this.account.verifySignature();
+  validate(authorityPublicKey: PublicKey, signature: Signature) {
+    this.account.verifySignature(authorityPublicKey, signature);
     // TODO prevent same proof from being calculated multiple times
     let validated = new Bool(true);
     for (let i = 0; i < this.requiredProofs.requiredProofs.length; i++) {
@@ -361,8 +271,8 @@ export class TransactionalProof {
     // calculate the avg income (Monthly incomes are calculated for later use)
     let monthlyIncomes = new Map<Field, Field>();
     let totalIncome = new Int64(Field.zero);
-    for (let i = 0; i < this.account.statement.transactions.length; i++) {
-      let tx = this.account.statement.transactions[i];
+    for (let i = 0; i < this.account.transactions.length; i++) {
+      let tx = this.account.transactions[i];
       for (let j = startOfMonths.length - 1; j > 0; j--) {
         totalIncome = Circuit.if(
           startOfMonths[j]
