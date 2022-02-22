@@ -160,42 +160,17 @@ export class AccountStatement extends CircuitValue {
     this.transactions = transactions;
   }
 
-  /*
-    toJSON(): JSONValue {
-        const res: { [key: string]: JSONValue } = {};
-        let transactions: JSONValue[] = [];
-        for (let i = 0; i < this.transactions.length; ++i) {
-            transactions.push(this.transactions[i].toJSON());
-        }
-        res['id'] = this.id.toJSON();
-        res['balance'] = this.balance.toJSON();
-        res['timestamp'] = this.timestamp.toJSON();
-        res['fromTimestamp'] = this.fromTimestamp.toJSON();
-        res['toTimestamp'] = this.toTimestamp.toJSON();
-        res['transactions'] = transactions;
-        return res;
+  serialize(): Field[] {
+    return this.toFields();
   }
 
-    static fromJSON(obj: JSONValue | null): AccountStatement {
-        const input: JSONValue = castJSONValue(obj);
-        const id: Field = castField(
-            Field.fromJSON(input['id'].toString()));
-        const balance: UInt64 = new UInt64(castField(
-            Field.fromJSON(input.balance.toString())));
-        const timestamp: Int64 = new Int64(castField(
-            Field.fromJSON(input.timestamp.toString())));
-        const fromTimestamp: Int64 = new Int64(castField(
-            Field.fromJSON(input.fromTimestamp.toString())));
-        const toTimestamp: Int64 = new Int64(castField(
-            Field.fromJSON(input.toTimestamp.toString())));
-        let transactions: Transaction[] = [];
-        for (let i = 0; i < input['transactions'].length; ++i) {
-            transactions.push(Transaction.fromJSON(input['transactions'][i]));
-        }
-        return new AccountStatement(
-            id, balance, timestamp, fromTimestamp, toTimestamp, transactions);
+  static deserialize(serialized: Field[]): AccountStatement {
+    const deserialized = AccountStatement.ofFields(serialized);
+    if (deserialized === null) {
+      throw Error();
     }
-    */
+    return deserialized;
+  }
 
   sign(authorityPrivateKey: PrivateKey): Signature {
     const signature: Signature = Signature.create(
