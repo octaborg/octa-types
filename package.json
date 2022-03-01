@@ -17,7 +17,7 @@
     "format": "prettier --write --ignore-unknown **/*"
   },
   "dependencies": {
-    "snarkyjs": "^0.1.11",
+    "snarkyjs": "^0.2.0",
     "date-fns": "^2.28.0"
   },
   "devDependencies": {
