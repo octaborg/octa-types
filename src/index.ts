@@ -20,7 +20,7 @@ import { endOfMonth, startOfMonth, subMonths } from 'date-fns';
 
 await isReady;
 
-function castField(f: Field | null): Field {
+export function castField(f: Field | null): Field {
   if (f === null) {
     console.log('throwing error');
     throw Error();
@@ -28,14 +28,14 @@ function castField(f: Field | null): Field {
   return f;
 }
 
-function castScalar(f: Scalar | null): Scalar {
+export function castScalar(f: Scalar | null): Scalar {
   if (f === null) {
     throw Error();
   }
   return f;
 }
 
-function castJSONValue(f: JSONValue | null): JSONValue {
+export function castJSONValue(f: JSONValue | null): JSONValue {
   if (f === null) {
     throw Error();
   }
