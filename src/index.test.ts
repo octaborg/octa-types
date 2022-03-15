@@ -42,6 +42,16 @@ describe('TransactionDataProof', () => {
         Promise.resolve(() => tdp.validate(authorityPublicKey, signature))
       );
     });
+    it('Should validate Validate average balance proof correctly', async () => {
+      let account = await testAccountStatement1();
+      const tdp = new TransactionalProof(account, testRequiredProofs2());
+      const authorityPrivateKey: PrivateKey = PrivateKey.random();
+      const signature: Signature = account.sign(authorityPrivateKey);
+      const authorityPublicKey: PublicKey = authorityPrivateKey.toPublicKey();
+      await Circuit.runAndCheck(() =>
+        Promise.resolve(() => tdp.validate(authorityPublicKey, signature))
+      );
+    });
   });
 
   describe('updateIncome()', () => {
@@ -77,6 +87,16 @@ function testRequiredProofs1(): RequiredProofs {
   return new RequiredProofs([
     new RequiredProof(
       RequiredProofType.avgMonthlyIncomeProof(),
+      new Int64(new Field(2000)),
+      new Int64(new Field(1000))
+    ),
+  ]);
+}
+
+function testRequiredProofs2(): RequiredProofs {
+  return new RequiredProofs([
+    new RequiredProof(
+      RequiredProofType.avgMonthlyBalanceProof(),
       new Int64(new Field(2000)),
       new Int64(new Field(1000))
     ),

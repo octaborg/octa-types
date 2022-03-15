@@ -228,10 +228,34 @@ export class TransactionalProof {
   }
 
   validateAvgMonthlyBalanceProof(requiredProof: RequiredProof): Bool {
-    let avgMonthlyBalance = new Int64(new Field(5000)); // TODO <- calculate this
-    return requiredProof.lowerBound.value
-      .lte(avgMonthlyBalance.value)
-      .and(requiredProof.upperBound.value.gt(avgMonthlyBalance.value));
+    // integrate balance by each month for the past 3 months
+    const numMonthsToTakeIntoAccount = 3;
+    const today = new Date();
+    let startOfPeriod: Field = new Field(
+      startOfMonth(subMonths(today, numMonthsToTakeIntoAccount)).getTime()
+    );
+    // some useful constants
+    const zero = new Int64(Field.zero);
+    const one = new Int64(Field.one);
+    // calculate the average monthly balance
+    let C = new Int64(this.account.balance.value);
+    let S = new Int64(Field.zero);
+    let n = new Int64(Field.zero);
+    for (let i = this.account.transactions.length - 1; i > 0; i--) {
+      let tx = this.account.transactions[i];
+      const Sp = S.add(C);
+      const np = n.add(one);
+      C = C.sub(tx.amount);
+      const cond: Bool = startOfPeriod
+        .lte(tx.timestamp.value)
+        .and(tx.amount.value.lt(zero.value).or(tx.amount.value.gt(zero.value)));
+      S = Circuit.if(cond, Sp, S);
+      n = Circuit.if(cond, np, n);
+    }
+    // check if condition holds
+    let L = requiredProof.lowerBound.value.mul(n.value);
+    let U = requiredProof.upperBound.value.mul(n.value);
+    return L.lte(S.value).and(U.gte(S.value));
   }
 
   validateAvgMonthlyIncomeProof(requiredProof: RequiredProof): Bool {
