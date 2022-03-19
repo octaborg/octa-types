@@ -376,3 +376,76 @@ export class RequiredProofs extends CircuitValue {
     this.requiredProofs = requiredProofs;
   }
 }
+
+export function makeDummyPurchases(
+  value: number,
+  n: number,
+  s: number,
+  tstart: number,
+  tdelta: number
+): Transaction[] {
+  let transactions: Transaction[] = [];
+  for (let j = 0; j < n; ++j) {
+    transactions.push(
+      new Transaction(
+        new Field(s + 1 + j),
+        new Int64(new Field(value)),
+        new TransactionType(
+          new Bool(true),
+          new Bool(false),
+          new Bool(false),
+          new Bool(false)
+        ),
+        new Int64(new Field(tstart + tdelta * j))
+      )
+    );
+  }
+  return transactions;
+}
+
+export async function generateDummyAccount(
+  _id: number,
+  income: number,
+  daily_expense: number,
+  final_balance: number
+): Promise<AccountStatement> {
+  const snappPrivkey = PrivateKey.random();
+  const months: number = 3;
+  const now: number = Math.floor(Date.now() / 1000);
+  let start_id: number = 0;
+  const delta: number = 24 * 60 * 60; // one day
+  let pubkey = snappPrivkey.toPublicKey();
+  let sign = Signature.create(snappPrivkey, [new Field(1)]);
+  let transactions: Transaction[] = [];
+  for (let j = months; j > 0; --j) {
+    const s: number = now - j * 30 * 24 * 60 * 60;
+    start_id = start_id + 1;
+    transactions.push(
+      new Transaction(
+        new Field(start_id),
+        new Int64(new Field(income)),
+        new TransactionType(
+          new Bool(false),
+          new Bool(true),
+          new Bool(false),
+          new Bool(false)
+        ),
+        new Int64(new Field(s))
+      )
+    );
+    transactions = transactions.concat(
+      makeDummyPurchases(daily_expense, 30, start_id, s, delta)
+    );
+    start_id = start_id + 30;
+  }
+  return Promise.resolve(
+    new AccountStatement(
+      new Field(_id),
+      new UInt64(new Field(final_balance)),
+      new Int64(new Field(now)), // timestamp
+      new Int64(new Field(now - months * 30 * 24 * 60 * 60 - 1)),
+      new Int64(new Field(now + 1)),
+      transactions
+    )
+  );
+}

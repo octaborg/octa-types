@@ -20,6 +20,7 @@ import {
   TransactionType,
   RequiredProof,
   RequiredProofType,
+  generateDummyAccount,
 } from './index';
 
 describe('TransactionDataProof', () => {
@@ -34,7 +35,10 @@ describe('TransactionDataProof', () => {
     // TODO temporarily skipping as first need to fix validateAvgMonthlyBalanceProof
     it.skip('Should validate Validate average monthly income proof correctly', async () => {
       let account = await testAccountStatement1();
-      const tdp = new TransactionalProof(account, testRequiredProofs1());
+      const tdp = new TransactionalProof(
+        account,
+        testRequiredProofsAVGIncome(1000, 2000)
+      );
       const authorityPrivateKey: PrivateKey = PrivateKey.random();
       const signature: Signature = account.sign(authorityPrivateKey);
       const authorityPublicKey: PublicKey = authorityPrivateKey.toPublicKey();
@@ -43,8 +47,12 @@ describe('TransactionDataProof', () => {
       );
     });
     it('Should validate Validate average balance proof correctly', async () => {
-      let account = await testAccountStatement1();
-      const tdp = new TransactionalProof(account, testRequiredProofs2());
+      // let account = await testAccountStatement1();
+      let account = await generateDummyAccount(0, 1000, 88, 5000);
+      const tdp = new TransactionalProof(
+        account,
+        testRequiredProofsAVGBalance(10000, 20000)
+      );
       const authorityPrivateKey: PrivateKey = PrivateKey.random();
       const signature: Signature = account.sign(authorityPrivateKey);
       const authorityPublicKey: PublicKey = authorityPrivateKey.toPublicKey();
@@ -57,7 +65,10 @@ describe('TransactionDataProof', () => {
   describe('updateIncome()', () => {
     it('Should update the income correctly', async () => {
       let account = await testAccountStatement1();
-      const tdp = new TransactionalProof(account, testRequiredProofs1());
+      const tdp = new TransactionalProof(
+        account,
+        testRequiredProofsAVGIncome(1000, 2000)
+      );
       let incomeMap = new Map();
       let totalIncome = await Circuit.runAndCheck(() =>
         Promise.resolve(() =>
@@ -83,22 +94,28 @@ describe('TransactionDataProof', () => {
   });
 });
 
-function testRequiredProofs1(): RequiredProofs {
+function testRequiredProofsAVGIncome(
+  _min: number,
+  _max: number
+): RequiredProofs {
   return new RequiredProofs([
     new RequiredProof(
       RequiredProofType.avgMonthlyIncomeProof(),
-      new Int64(new Field(2000)),
-      new Int64(new Field(1000))
+      new Int64(new Field(_max)),
+      new Int64(new Field(_min))
     ),
   ]);
 }
 
-function testRequiredProofs2(): RequiredProofs {
+function testRequiredProofsAVGBalance(
+  _min: number,
+  _max: number
+): RequiredProofs {
   return new RequiredProofs([
     new RequiredProof(
       RequiredProofType.avgMonthlyBalanceProof(),
-      new Int64(new Field(2000)),
-      new Int64(new Field(1000))
+      new Int64(new Field(_max)),
+      new Int64(new Field(_min))
     ),
   ]);
 }
