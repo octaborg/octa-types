@@ -183,6 +183,56 @@ export class AccountStatement extends CircuitValue {
   verifySignature(authorityPublicKey: PublicKey, signature: Signature): Bool {
     return signature.verify(authorityPublicKey, this.toFields());
   }
+
+  balanceAfterTX(j: number): Int64 {
+    let balance: Int64 = new Int64(this.balance.value);
+    for (let i = this.transactions.length - 1; i > j; i--) {
+      const tx = this.transactions[i];
+      const balance_sub = balance.sub(tx.amount);
+      const balance_add = balance.add(tx.amount);
+      balance = Circuit.if(tx.transactionType.purchase, balance_add, balance);
+      balance = Circuit.if(tx.transactionType.deposit, balance_sub, balance);
+      balance = Circuit.if(tx.transactionType.transferIn, balance_sub, balance);
+      balance = Circuit.if(
+        tx.transactionType.transaferOut,
+        balance_add,
+        balance
+      );
+    }
+    return balance;
+  }
+
+  balanceIntegral(_t0: number, _tf: number): Int64 {
+    let integral: Int64 = new Int64(new Field(0));
+    let t0: Int64 = new Int64(new Field(_t0));
+    let tf: Int64 = new Int64(new Field(_tf));
+    for (let i = 0; i < this.transactions.length; i++) {
+      const tx = this.transactions[i];
+      const cond: Bool = t0.value
+        .lte(tx.timestamp.value)
+        .and(tf.value.gte(tx.timestamp.value));
+      const balance: Int64 = this.balanceAfterTX(i);
+      const dintegral: Int64 = integral.add(balance);
+      integral = Circuit.if(cond, dintegral, integral);
+    }
+    return integral;
+  }
+
+  txCount(_t0: number, _tf: number): Int64 {
+    let n: Int64 = new Int64(new Field(0));
+    const one: Int64 = new Int64(new Field(1));
+    let t0: Int64 = new Int64(new Field(_t0));
+    let tf: Int64 = new Int64(new Field(_tf));
+    for (let i = 0; i < this.transactions.length; i++) {
+      const tx = this.transactions[i];
+      const cond: Bool = t0.value
+        .lte(tx.timestamp.value)
+        .and(tf.value.gte(tx.timestamp.value));
+      const nn: Int64 = n.add(one);
+      n = Circuit.if(cond, nn, n);
+    }
+    return n;
+  }
 }
 
 export class TransactionalProof {
@@ -228,30 +278,15 @@ export class TransactionalProof {
   }
 
   validateAvgMonthlyBalanceProof(requiredProof: RequiredProof): Bool {
-    // integrate balance by each month for the past 3 months
-    const numMonthsToTakeIntoAccount = 3;
-    const today = new Date();
-    let startOfPeriod: Field = new Field(
-      startOfMonth(subMonths(today, numMonthsToTakeIntoAccount)).getTime()
-    );
-    // some useful constants
-    const zero = new Int64(Field.zero);
-    const one = new Int64(Field.one);
+    const numMonthsToTakeIntoAccount: number = 3;
     // calculate the average monthly balance
-    let C = new Int64(this.account.balance.value);
-    let S = new Int64(Field.zero);
-    let n = new Int64(Field.zero);
-    for (let i = this.account.transactions.length - 1; i > 0; i--) {
-      let tx = this.account.transactions[i];
-      const Sp = S.add(C);
-      const np = n.add(one);
-      C = C.sub(tx.amount);
-      const cond: Bool = startOfPeriod
-        .lte(tx.timestamp.value)
-        .and(tx.amount.value.lt(zero.value).or(tx.amount.value.gt(zero.value)));
-      S = Circuit.if(cond, Sp, S);
-      n = Circuit.if(cond, np, n);
-    }
+    const today = new Date();
+    const t0: number = startOfMonth(
+      subMonths(today, numMonthsToTakeIntoAccount)
+    ).getTime();
+    const tf: number = today.getTime();
+    let S = this.account.balanceIntegral(t0, tf);
+    let n = this.account.txCount(t0, tf);
     // check if condition holds
     let L = requiredProof.lowerBound.value.mul(n.value);
     let U = requiredProof.upperBound.value.mul(n.value);

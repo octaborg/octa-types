@@ -91,6 +91,36 @@ describe('TransactionDataProof', () => {
       expect(new Field(10).div(3)).toEqual(new Field(4)); // 9649340769776349618630915417390658987787685493980520238651558921449989211779
       expect(new Field(5000).div(3)).toEqual(new Field(0)); // 9649340769776349618630915417390658987787685493980520238651558921449989211779
     });
+    it('Should compute balance after ith transaction', async () => {
+      const dummy: AccountStatement = makeDummy();
+      expect(dummy.balanceAfterTX(2)).toEqual(new Int64(new Field(10000)));
+      expect(dummy.balanceAfterTX(1)).toEqual(new Int64(new Field(9999)));
+      expect(dummy.balanceAfterTX(0)).toEqual(new Int64(new Field(9998)));
+    });
+    it('Should integrate account balances within given interval range', async () => {
+      const dummy: AccountStatement = makeDummy();
+      expect(dummy.balanceIntegral(0, 4)).toEqual(
+        new Int64(new Field(10000 + 9999 + 9998))
+      );
+      expect(dummy.balanceIntegral(1, 3)).toEqual(
+        new Int64(new Field(10000 + 9999 + 9998))
+      );
+      expect(dummy.balanceIntegral(2, 3)).toEqual(
+        new Int64(new Field(10000 + 9999))
+      );
+      expect(dummy.balanceIntegral(3, 3)).toEqual(new Int64(new Field(10000)));
+      expect(dummy.balanceIntegral(2, 2)).toEqual(new Int64(new Field(9999)));
+      expect(dummy.balanceIntegral(1, 1)).toEqual(new Int64(new Field(9998)));
+    });
+    it('Should count transactions within given interval range', async () => {
+      const dummy: AccountStatement = makeDummy();
+      expect(dummy.txCount(0, 4)).toEqual(new Int64(new Field(3)));
+      expect(dummy.txCount(1, 3)).toEqual(new Int64(new Field(3)));
+      expect(dummy.txCount(2, 3)).toEqual(new Int64(new Field(2)));
+      expect(dummy.txCount(3, 3)).toEqual(new Int64(new Field(1)));
+      expect(dummy.txCount(2, 2)).toEqual(new Int64(new Field(1)));
+      expect(dummy.txCount(1, 1)).toEqual(new Int64(new Field(1)));
+    });
   });
 });
 
@@ -118,6 +148,51 @@ function testRequiredProofsAVGBalance(
       new Int64(new Field(_min))
     ),
   ]);
+}
+
+function makeDummy(): AccountStatement {
+  return new AccountStatement(
+    new Field(0),
+    new UInt64(new Field(10000)),
+    new Int64(new Field(100)), // timestamp
+    new Int64(new Field(100)),
+    new Int64(new Field(100)),
+    [
+      new Transaction(
+        new Field(1),
+        new Int64(new Field(1)),
+        new TransactionType(
+          new Bool(false),
+          new Bool(true),
+          new Bool(false),
+          new Bool(false)
+        ),
+        new Int64(new Field(1))
+      ),
+      new Transaction(
+        new Field(2),
+        new Int64(new Field(1)),
+        new TransactionType(
+          new Bool(false),
+          new Bool(true),
+          new Bool(false),
+          new Bool(false)
+        ),
+        new Int64(new Field(2))
+      ),
+      new Transaction(
+        new Field(3),
+        new Int64(new Field(1)),
+        new TransactionType(
+          new Bool(false),
+          new Bool(true),
+          new Bool(false),
+          new Bool(false)
+        ),
+        new Int64(new Field(3))
+      ),
+    ]
+  );
 }
 
 async function testAccountStatement1(): Promise<AccountStatement> {
