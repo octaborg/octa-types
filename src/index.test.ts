@@ -33,11 +33,11 @@ describe('TransactionDataProof', () => {
 
   describe('validate()', () => {
     // TODO temporarily skipping as first need to fix validateAvgMonthlyBalanceProof
-    it.skip('Should validate Validate average monthly income proof correctly', async () => {
-      let account = await testAccountStatement1();
+    it('Should succeed when average monthly income is sufficient', async () => {
+      let account = await generateDummyAccount(0, 1000, 88, 5000);
       const tdp = new TransactionalProof(
         account,
-        testRequiredProofsAVGIncome(1000, 2000)
+        testRequiredProofsAVGIncome(900, 5000)
       );
       const authorityPrivateKey: PrivateKey = PrivateKey.random();
       const signature: Signature = account.sign(authorityPrivateKey);
@@ -46,12 +46,32 @@ describe('TransactionDataProof', () => {
         Promise.resolve(() => tdp.validate(authorityPublicKey, signature))
       );
     });
-    it('Should validate Validate average balance proof correctly', async () => {
-      // let account = await testAccountStatement1();
+    it('Should fail when average monthly income is not sufficient', async () => {
       let account = await generateDummyAccount(0, 1000, 88, 5000);
       const tdp = new TransactionalProof(
         account,
-        testRequiredProofsAVGBalance(10000, 20000)
+        testRequiredProofsAVGIncome(1001, 5000)
+      );
+      const authorityPrivateKey: PrivateKey = PrivateKey.random();
+      const signature: Signature = account.sign(authorityPrivateKey);
+      const authorityPublicKey: PublicKey = authorityPrivateKey.toPublicKey();
+      const res = await Circuit.runAndCheck(() =>
+        Promise.resolve(() => {
+          try {
+            tdp.validate(authorityPublicKey, signature);
+          } catch (error) {
+            return false;
+          }
+          return true;
+        })
+      );
+      expect(res).toBe(false);
+    });
+    it('Should succeed when average balance is sufficient', async () => {
+      let account = await generateDummyAccount(0, 1000, 88, 5000);
+      const tdp = new TransactionalProof(
+        account,
+        testRequiredProofsAVGBalance(6000, 8000)
       );
       const authorityPrivateKey: PrivateKey = PrivateKey.random();
       const signature: Signature = account.sign(authorityPrivateKey);
@@ -59,6 +79,27 @@ describe('TransactionDataProof', () => {
       await Circuit.runAndCheck(() =>
         Promise.resolve(() => tdp.validate(authorityPublicKey, signature))
       );
+    });
+    it('Should fail when average balance is not sufficient', async () => {
+      let account = await generateDummyAccount(0, 1000, 88, 5000);
+      const tdp = new TransactionalProof(
+        account,
+        testRequiredProofsAVGBalance(8000, 9000)
+      );
+      const authorityPrivateKey: PrivateKey = PrivateKey.random();
+      const signature: Signature = account.sign(authorityPrivateKey);
+      const authorityPublicKey: PublicKey = authorityPrivateKey.toPublicKey();
+      const res = await Circuit.runAndCheck(() =>
+        Promise.resolve(() => {
+          try {
+            tdp.validate(authorityPublicKey, signature);
+          } catch (error) {
+            return false;
+          }
+          return true;
+        })
+      );
+      expect(res).toBe(false);
     });
   });
 
@@ -154,9 +195,9 @@ function makeDummy(): AccountStatement {
   return new AccountStatement(
     new Field(0),
     new UInt64(new Field(10000)),
-    new Int64(new Field(100)), // timestamp
-    new Int64(new Field(100)),
-    new Int64(new Field(100)),
+    new UInt64(new Field(100)), // timestamp
+    new UInt64(new Field(100)),
+    new UInt64(new Field(100)),
     [
       new Transaction(
         new Field(1),
@@ -167,7 +208,7 @@ function makeDummy(): AccountStatement {
           new Bool(false),
           new Bool(false)
         ),
-        new Int64(new Field(1))
+        new UInt64(new Field(1))
       ),
       new Transaction(
         new Field(2),
@@ -178,7 +219,7 @@ function makeDummy(): AccountStatement {
           new Bool(false),
           new Bool(false)
         ),
-        new Int64(new Field(2))
+        new UInt64(new Field(2))
       ),
       new Transaction(
         new Field(3),
@@ -189,7 +230,7 @@ function makeDummy(): AccountStatement {
           new Bool(false),
           new Bool(false)
         ),
-        new Int64(new Field(3))
+        new UInt64(new Field(3))
       ),
     ]
   );
@@ -203,9 +244,9 @@ async function testAccountStatement1(): Promise<AccountStatement> {
     new AccountStatement(
       new Field(0),
       new UInt64(new Field(10000)),
-      new Int64(new Field(100)), // timestamp
-      new Int64(new Field(100)),
-      new Int64(new Field(100)),
+      new UInt64(new Field(100)), // timestamp
+      new UInt64(new Field(100)),
+      new UInt64(new Field(100)),
       [
         new Transaction(
           new Field(1),
@@ -216,7 +257,7 @@ async function testAccountStatement1(): Promise<AccountStatement> {
             new Bool(false),
             new Bool(false)
           ),
-          new Int64(new Field(new Date().getTime() - 2592000000))
+          new UInt64(new Field(new Date().getTime() - 2592000000))
         ),
       ]
     )
@@ -243,16 +284,16 @@ describe('serialization/deserialization', () => {
             new Bool(false),
             new Bool(false)
           ),
-          new Int64(new Field(0))
+          new UInt64(new Field(0))
         )
       );
     }
     const account: AccountStatement = new AccountStatement(
       new Field(0),
       new UInt64(new Field(10000)),
-      new Int64(new Field(100)), // timestamp
-      new Int64(new Field(100)),
-      new Int64(new Field(100)),
+      new UInt64(new Field(100)), // timestamp
+      new UInt64(new Field(100)),
+      new UInt64(new Field(100)),
       transactions
     );
     const serialized: Field[] = account.serialize();
@@ -284,16 +325,16 @@ describe('producing and verifying signatures', () => {
             new Bool(false),
             new Bool(false)
           ),
-          new Int64(new Field(0))
+          new UInt64(new Field(0))
         )
       );
     }
     const account: AccountStatement = new AccountStatement(
       new Field(0),
       new UInt64(new Field(10000)),
-      new Int64(new Field(100)), // timestamp
-      new Int64(new Field(100)),
-      new Int64(new Field(100)),
+      new UInt64(new Field(100)), // timestamp
+      new UInt64(new Field(100)),
+      new UInt64(new Field(100)),
       transactions
     );
     const authorityPrivateKey: PrivateKey = PrivateKey.random();

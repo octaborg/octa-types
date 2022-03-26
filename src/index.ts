@@ -117,13 +117,13 @@ export class Transaction extends CircuitValue {
   @prop id: Field;
   @prop amount: Int64;
   @prop transactionType: TransactionType;
-  @prop timestamp: Int64;
+  @prop timestamp: UInt64;
 
   constructor(
     id: Field,
     amount: Int64,
     transactionType: TransactionType,
-    timestamp: Int64
+    timestamp: UInt64
   ) {
     super();
     this.id = id;
@@ -138,17 +138,17 @@ export class Transaction extends CircuitValue {
 export class AccountStatement extends CircuitValue {
   @prop id: Field;
   @prop balance: UInt64;
-  @prop timestamp: Int64;
-  @prop fromTimestamp: Int64;
-  @prop toTimestamp: Int64;
+  @prop timestamp: UInt64;
+  @prop fromTimestamp: UInt64;
+  @prop toTimestamp: UInt64;
   @arrayProp(Transaction, 100) transactions: Transaction[];
 
   constructor(
     id: Field,
     balance: UInt64,
-    timestamp: Int64,
-    from: Int64,
-    to: Int64,
+    timestamp: UInt64,
+    from: UInt64,
+    to: UInt64,
     transactions: Array<Transaction>
   ) {
     super();
@@ -204,8 +204,8 @@ export class AccountStatement extends CircuitValue {
 
   balanceIntegral(_t0: number, _tf: number): Int64 {
     let integral: Int64 = new Int64(new Field(0));
-    let t0: Int64 = new Int64(new Field(_t0));
-    let tf: Int64 = new Int64(new Field(_tf));
+    let t0: UInt64 = new UInt64(new Field(_t0));
+    let tf: UInt64 = new UInt64(new Field(_tf));
     for (let i = 0; i < this.transactions.length; i++) {
       const tx = this.transactions[i];
       const cond: Bool = t0.value
@@ -218,17 +218,17 @@ export class AccountStatement extends CircuitValue {
     return integral;
   }
 
-  txCount(_t0: number, _tf: number): Int64 {
-    let n: Int64 = new Int64(new Field(0));
-    const one: Int64 = new Int64(new Field(1));
-    let t0: Int64 = new Int64(new Field(_t0));
-    let tf: Int64 = new Int64(new Field(_tf));
+  txCount(_t0: number, _tf: number): UInt64 {
+    let n: UInt64 = new UInt64(new Field(0));
+    const one: UInt64 = new UInt64(new Field(1));
+    let t0: UInt64 = new UInt64(new Field(_t0));
+    let tf: UInt64 = new UInt64(new Field(_tf));
     for (let i = 0; i < this.transactions.length; i++) {
       const tx = this.transactions[i];
       const cond: Bool = t0.value
         .lte(tx.timestamp.value)
         .and(tf.value.gte(tx.timestamp.value));
-      const nn: Int64 = n.add(one);
+      const nn: UInt64 = n.add(one);
       n = Circuit.if(cond, nn, n);
     }
     return n;
@@ -247,50 +247,44 @@ export class TransactionalProof {
   validate(authorityPublicKey: PublicKey, signature: Signature) {
     this.account.verifySignature(authorityPublicKey, signature);
     // TODO prevent same proof from being calculated multiple times
+    const tautology: Bool = new Bool(true);
     let validated = new Bool(true);
     for (let i = 0; i < this.requiredProofs.requiredProofs.length; i++) {
-      validated =
-        validated.and(
-          Circuit.if(
-            this.requiredProofs.requiredProofs[i].requiredProofType.equals(
-              RequiredProofType.avgMonthlyBalanceProof()
-            ),
-            this.validateAvgMonthlyBalanceProof(
-              this.requiredProofs.requiredProofs[i]
-            ),
-            new Bool(true)
-          )
-        ) &&
-        validated.and(
-          Circuit.if(
-            this.requiredProofs.requiredProofs[i].requiredProofType.equals(
-              RequiredProofType.avgMonthlyIncomeProof()
-            ),
-            this.validateAvgMonthlyIncomeProof(
-              this.requiredProofs.requiredProofs[i]
-            ),
-            new Bool(true)
-          )
-        );
-      // && // other proof validations ....
+      const valid_balance: Bool = this.validateAvgMonthlyBalanceProof(
+        this.requiredProofs.requiredProofs[i]
+      );
+      const cond_balance: Bool = this.requiredProofs.requiredProofs[
+        i
+      ].requiredProofType.equals(RequiredProofType.avgMonthlyBalanceProof());
+      const valid_income: Bool = this.validateAvgMonthlyIncomeProof(
+        this.requiredProofs.requiredProofs[i]
+      );
+      const cond_income: Bool = this.requiredProofs.requiredProofs[
+        i
+      ].requiredProofType.equals(RequiredProofType.avgMonthlyIncomeProof());
+
+      validated = Circuit.if(cond_balance, valid_balance, validated);
+      validated = Circuit.if(cond_income, valid_income, validated);
     }
-    validated.assertEquals(true);
+    validated.assertEquals(tautology);
   }
 
   validateAvgMonthlyBalanceProof(requiredProof: RequiredProof): Bool {
+    const zero: Field = new Field(0);
     const numMonthsToTakeIntoAccount: number = 3;
+    const sdelta: number = numMonthsToTakeIntoAccount * 30 * 24 * 60 * 60;
     // calculate the average monthly balance
     const today = new Date();
-    const t0: number = startOfMonth(
-      subMonths(today, numMonthsToTakeIntoAccount)
-    ).getTime();
-    const tf: number = today.getTime();
-    let S = this.account.balanceIntegral(t0, tf);
-    let n = this.account.txCount(t0, tf);
-    // check if condition holds
-    let L = requiredProof.lowerBound.value.mul(n.value);
-    let U = requiredProof.upperBound.value.mul(n.value);
-    return L.lte(S.value).and(U.gte(S.value));
+    const tf = Math.floor(today.getTime() / 1000);
+    const t0: number = tf - sdelta;
+    let S: Int64 = this.account.balanceIntegral(t0, tf);
+    let n: UInt64 = this.account.txCount(t0, tf);
+    let L: Field = requiredProof.lowerBound.value.mul(n.value);
+    let U: Field = requiredProof.upperBound.value.mul(n.value);
+    const valid: Bool = L.lte(S.value)
+      .and(U.gte(S.value))
+      .and(n.value.gte(zero));
+    return valid;
   }
 
   validateAvgMonthlyIncomeProof(requiredProof: RequiredProof): Bool {
@@ -328,11 +322,6 @@ export class TransactionalProof {
     let avgMonthlyIncome = new Int64(
       totalIncome.value.div(numMonthsToTakeIntoAccount)
     );
-    // Compare the aggregate amount instead of the divided value.
-    // TODO does not work
-    //let avgMonthlyIncome = new Int64(new Field(1500)); // Dummy value to make the tests past
-
-    console.log(totalIncome, avgMonthlyIncome);
     return requiredProof.lowerBound.value
       .lte(avgMonthlyIncome.value)
       .and(requiredProof.upperBound.value.gt(avgMonthlyIncome.value));
@@ -431,7 +420,7 @@ export function makeDummyPurchases(
           new Bool(false),
           new Bool(false)
         ),
-        new Int64(new Field(tstart + tdelta * j))
+        new UInt64(new Field(tstart + tdelta * j))
       )
     );
   }
@@ -444,9 +433,10 @@ export async function generateDummyAccount(
   daily_expense: number,
   final_balance: number
 ): Promise<AccountStatement> {
+  const today = new Date();
+  const now: number = Math.floor(today.getTime() / 1000);
   const snappPrivkey = PrivateKey.random();
   const months: number = 3;
-  const now: number = Math.floor(Date.now() / 1000);
   let start_id: number = 0;
   const delta: number = 24 * 60 * 60; // one day
   let pubkey = snappPrivkey.toPublicKey();
@@ -462,10 +452,10 @@ export async function generateDummyAccount(
         new TransactionType(
           new Bool(false),
           new Bool(true),
-          new Bool(false),
+          new Bool(true),
           new Bool(false)
         ),
-        new Int64(new Field(s))
+        new UInt64(new Field(s))
       )
     );
     transactions = transactions.concat(
@@ -477,9 +467,9 @@ export async function generateDummyAccount(
     new AccountStatement(
       new Field(_id),
       new UInt64(new Field(final_balance)),
-      new Int64(new Field(now)), // timestamp
-      new Int64(new Field(now - months * 30 * 24 * 60 * 60 - 1)),
-      new Int64(new Field(now + 1)),
+      new UInt64(new Field(now)), // timestamp
+      new UInt64(new Field(now - months * 30 * 24 * 60 * 60 - 1)),
+      new UInt64(new Field(now + 1)),
       transactions
     )
   );
