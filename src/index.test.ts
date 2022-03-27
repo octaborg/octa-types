@@ -71,7 +71,7 @@ describe('TransactionDataProof', () => {
       let account = await generateDummyAccount(0, 1000, 88, 5000);
       const tdp = new TransactionalProof(
         account,
-        testRequiredProofsAVGBalance(6000, 8000)
+        testRequiredProofsAVGBalance(4000, 8000)
       );
       const authorityPrivateKey: PrivateKey = PrivateKey.random();
       const signature: Signature = account.sign(authorityPrivateKey);
@@ -273,7 +273,7 @@ describe('serialization/deserialization', () => {
   });
   it('should be isomorphic', async () => {
     const transactions: Transaction[] = [];
-    for (let j = 0; j < 100; ++j) {
+    for (let j = 0; j < 30; ++j) {
       transactions.push(
         new Transaction(
           new Field(1),
@@ -297,6 +297,22 @@ describe('serialization/deserialization', () => {
       transactions
     );
     const serialized: Field[] = account.serialize();
+    const deserialized: Field[] =
+      AccountStatement.deserialize(serialized).serialize();
+    const hash1 = Poseidon.hash(serialized);
+    const hash2 = Poseidon.hash(deserialized);
+    expect(hash1).toEqual(hash2);
+  });
+  it('should be isomorphic for dummy account as well', async () => {
+    const account: AccountStatement = await generateDummyAccount(
+      0,
+      1000,
+      10,
+      10000
+    );
+    const serialized: Field[] = account.serialize();
+    expect(account.transactions.length).toEqual(30);
+
     const deserialized: Field[] =
       AccountStatement.deserialize(serialized).serialize();
     const hash1 = Poseidon.hash(serialized);

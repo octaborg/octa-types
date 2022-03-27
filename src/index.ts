@@ -141,7 +141,7 @@ export class AccountStatement extends CircuitValue {
   @prop timestamp: UInt64;
   @prop fromTimestamp: UInt64;
   @prop toTimestamp: UInt64;
-  @arrayProp(Transaction, 100) transactions: Transaction[];
+  @arrayProp(Transaction, 30) transactions: Transaction[];
 
   constructor(
     id: Field,
@@ -278,6 +278,7 @@ export class TransactionalProof {
     const tf = Math.floor(today.getTime() / 1000);
     const t0: number = tf - sdelta;
     let S: Int64 = this.account.balanceIntegral(t0, tf);
+    console.log(S.toString());
     let n: UInt64 = this.account.txCount(t0, tf);
     let L: Field = requiredProof.lowerBound.value.mul(n.value);
     let U: Field = requiredProof.upperBound.value.mul(n.value);
@@ -409,7 +410,7 @@ export function makeDummyPurchases(
   tdelta: number
 ): Transaction[] {
   let transactions: Transaction[] = [];
-  for (let j = 0; j < n; ++j) {
+  for (let j = 0; j < n - 2; ++j) {
     transactions.push(
       new Transaction(
         new Field(s + 1 + j),
@@ -459,7 +460,13 @@ export async function generateDummyAccount(
       )
     );
     transactions = transactions.concat(
-      makeDummyPurchases(daily_expense, 30, start_id, s, delta)
+      makeDummyPurchases(
+        daily_expense,
+        30 - transactions.length,
+        start_id,
+        s,
+        delta
+      )
     );
     start_id = start_id + 30;
   }
