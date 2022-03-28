@@ -236,6 +236,126 @@ function makeDummy(): AccountStatement {
   );
 }
 
+function makeOtherDummy(): AccountStatement {
+  return new AccountStatement(
+    new Field(0),
+    new UInt64(new Field(10000)),
+    new UInt64(new Field(100)), // timestamp
+    new UInt64(new Field(100)),
+    new UInt64(new Field(100)),
+    [
+      new Transaction(
+        new Field(1),
+        new Int64(new Field(1)),
+        new TransactionType(
+          new Bool(false),
+          new Bool(true),
+          new Bool(false),
+          new Bool(false)
+        ),
+        new UInt64(new Field(1))
+      ),
+      new Transaction(
+        new Field(2),
+        new Int64(new Field(1)),
+        new TransactionType(
+          new Bool(false),
+          new Bool(true),
+          new Bool(false),
+          new Bool(false)
+        ),
+        new UInt64(new Field(18))
+      ),
+      new Transaction(
+        new Field(3),
+        new Int64(new Field(1)),
+        new TransactionType(
+          new Bool(false),
+          new Bool(true),
+          new Bool(true),
+          new Bool(false)
+        ),
+        new UInt64(new Field(3))
+      ),
+    ]
+  );
+}
+
+describe('deep equality test', () => {
+  beforeAll(async () => {
+    await isReady;
+  });
+  afterAll(async () => {
+    await shutdown();
+  });
+  it('of TransactionType', async () => {
+    const first: TransactionType = new TransactionType(
+      new Bool(true),
+      new Bool(false),
+      new Bool(false),
+      new Bool(false)
+    );
+    const other: TransactionType = new TransactionType(
+      new Bool(true),
+      new Bool(false),
+      new Bool(false),
+      new Bool(false)
+    );
+    const yetother: TransactionType = new TransactionType(
+      new Bool(true),
+      new Bool(false),
+      new Bool(true),
+      new Bool(false)
+    );
+    expect(first).toEqual(other);
+    expect(first).not.toEqual(yetother);
+  });
+  it('of Transaction', async () => {
+    const first: Transaction = new Transaction(
+      new Field(2),
+      new Int64(new Field(1)),
+      new TransactionType(
+        new Bool(false),
+        new Bool(true),
+        new Bool(false),
+        new Bool(false)
+      ),
+      new UInt64(new Field(2))
+    );
+    const other: Transaction = new Transaction(
+      new Field(2),
+      new Int64(new Field(1)),
+      new TransactionType(
+        new Bool(false),
+        new Bool(true),
+        new Bool(false),
+        new Bool(false)
+      ),
+      new UInt64(new Field(2))
+    );
+    const yetother: Transaction = new Transaction(
+      new Field(3),
+      new Int64(new Field(2)),
+      new TransactionType(
+        new Bool(false),
+        new Bool(true),
+        new Bool(true),
+        new Bool(false)
+      ),
+      new UInt64(new Field(1))
+    );
+    expect(first).toEqual(other);
+    expect(first).not.toEqual(yetother);
+  });
+  it('of AccountStatement', async () => {
+    const first: AccountStatement = makeDummy();
+    const other: AccountStatement = makeDummy();
+    const yetother: AccountStatement = makeOtherDummy();
+    expect(first).toEqual(other);
+    expect(first).not.toEqual(yetother);
+  });
+});
+
 async function testAccountStatement1(): Promise<AccountStatement> {
   const snappPrivkey = PrivateKey.random();
   let pubkey = snappPrivkey.toPublicKey();

@@ -172,6 +172,29 @@ export class AccountStatement extends CircuitValue {
     return deserialized;
   }
 
+  equals(other: AccountStatement): Bool {
+    let are_equal: Bool = this.id.equals(other.id);
+    are_equal = are_equal.and(this.balance.value.equals(other.balance.value));
+    are_equal = are_equal.and(
+      this.timestamp.value.equals(other.timestamp.value)
+    );
+    are_equal = are_equal.and(
+      this.fromTimestamp.value.equals(other.fromTimestamp.value)
+    );
+    are_equal = are_equal.and(
+      this.toTimestamp.value.equals(other.toTimestamp.value)
+    );
+    if (other.transactions.length != this.transactions.length) {
+      return new Bool(false);
+    }
+    for (let j = 0; j < this.transactions.length; j++) {
+      are_equal = are_equal.and(
+        this.transactions[j].equals(other.transactions[j])
+      );
+    }
+    return are_equal;
+  }
+
   sign(authorityPrivateKey: PrivateKey): Signature {
     const signature: Signature = Signature.create(
       authorityPrivateKey,
