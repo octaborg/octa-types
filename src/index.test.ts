@@ -417,10 +417,12 @@ describe('serialization/deserialization', () => {
       transactions
     );
     const serialized: Field[] = account.serialize();
-    const deserialized: Field[] =
-      AccountStatement.deserialize(serialized).serialize();
+    const deserialized: AccountStatement =
+      AccountStatement.deserialize(serialized);
+    expect(account).toEqual(deserialized);
+    const serialized_again: Field[] = deserialized.serialize();
     const hash1 = Poseidon.hash(serialized);
-    const hash2 = Poseidon.hash(deserialized);
+    const hash2 = Poseidon.hash(serialized_again);
     expect(hash1).toEqual(hash2);
   });
   it('should be isomorphic for dummy account as well', async () => {
@@ -431,12 +433,15 @@ describe('serialization/deserialization', () => {
       10000
     );
     const serialized: Field[] = account.serialize();
+    const deserialized: AccountStatement =
+      AccountStatement.deserialize(serialized);
+    expect(account).toEqual(deserialized);
     expect(account.transactions.length).toEqual(30);
 
-    const deserialized: Field[] =
+    const serialized_again: Field[] =
       AccountStatement.deserialize(serialized).serialize();
     const hash1 = Poseidon.hash(serialized);
-    const hash2 = Poseidon.hash(deserialized);
+    const hash2 = Poseidon.hash(serialized_again);
     expect(hash1).toEqual(hash2);
   });
 });
