@@ -2,7 +2,7 @@ import { Field } from 'snarkyjs';
 
 import { AccountStatement } from './index';
 
-it('Should deserialize properly', () => {
+it.skip('Should deserialize properly', () => {
   const response = [
     '1',
     '12621',
