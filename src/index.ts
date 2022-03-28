@@ -301,7 +301,6 @@ export class TransactionalProof {
     const tf = Math.floor(today.getTime() / 1000);
     const t0: number = tf - sdelta;
     let S: Int64 = this.account.balanceIntegral(t0, tf);
-    console.log(S.toString());
     let n: UInt64 = this.account.txCount(t0, tf);
     let L: Field = requiredProof.lowerBound.value.mul(n.value);
     let U: Field = requiredProof.upperBound.value.mul(n.value);
